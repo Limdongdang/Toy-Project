@@ -1,0 +1,274 @@
+# Simple To-Do List App
+# by Limdongdang
+# Python 3.10.2 using IDLE
+# Windows Compatible
+# Topics: tkinter, tkcalendar
+# Topics: Treeview Widget, Scrollbar widget, tkinter.messagebox, Try/Except Block, pickle
+
+from tkinter import *
+from tkinter import ttk
+from tkcalendar import Calendar
+import tkinter.messagebox
+from datetime import datetime
+import datetime
+import tkinter as tk
+import pickle
+ 
+
+root = tk.Tk()
+root.title("To do list")
+root.geometry("345x400")
+root.resizable(True, True)
+# 라벨
+label=tk.Label(root, text="일정 관리 프로그램", width=48, height=3, fg="black", relief="solid")
+label.pack()
+
+# 퍼센트 카운트 변수
+count = 0
+
+# 달력창 띄우기
+def createNewWindow():
+    # 팝업 창, 좌표
+    x = root.winfo_x()
+    y = root.winfo_y()
+    global cal, newWindow
+    newWindow = tk.Toplevel()
+    newWindow.geometry("%dx%d+%d+%d" % (200, 190, x, y))
+    newWindow.resizable(False, False)
+    # 달력 
+    cal = Calendar(newWindow, selectmode = 'day',
+               year = today.year,
+               month = today.month,
+               day = today.day)
+    cal.pack()
+    # 선택 버튼
+    button_complete_task = tk.Button(newWindow, text="선택",
+                                     bg = 'lightgray', width=27,
+                                     command= selectDay)
+    button_complete_task.pack()
+    # 팝업 활성화 시 root창 비 활성화
+    newWindow.grab_set()
+    
+
+ 
+
+# 달력 선택
+def selectDay():
+    deadline = datetime.datetime.strptime(cal.get_date(), '%m/%d/%y')
+    d_day = (deadline - now).days
+    deaddate = str(deadline)
+    if d_day < -1: # 날짜 오류
+        tk.messagebox.showwarning(title="경고!",
+                                  message="지난 날짜는 선택 할 수 없습니다.")
+        entry1_task.delete(0, tkinter.END)
+        newWindow.destroy()
+        return
+    entry1_task.delete(0, tkinter.END)
+    entry1_task.insert(0, deaddate[:10])
+    newWindow.destroy()
+    
+        
+
+# 색칠 함수
+def color_Task(nid, d_day):
+    if d_day < -1: #기한 지남
+        tr_view.tag_configure(nid, background="lightgrey")
+    elif d_day <= 2: # 3일 이내
+        tr_view.tag_configure(nid, background="tomato")
+    elif d_day <= 9: # 10일 이내
+        tr_view.tag_configure(nid, background="lightskyblue")
+    elif d_day <= 29: # 30일 이내
+        tr_view.tag_configure(nid, background="palegreen")
+    else: # 그 밖
+        tr_view.tag_configure(nid, background="lightcyan")
+
+nid = 0
+# 추가하기
+def add_task():
+    global nid
+    task = entry2_task.get() # 할 일 가져오기
+    if len(task) >= 15: # 15자 이상은 입력 불가능
+        tk.messagebox.showwarning(title="경고!", message="15자 이상은 입력할 수 없습니다...")
+        entry2_task.delete(0, "end")
+        return
+    if task == "":      # 빈 칸 입력 불가능
+        tk.messagebox.showwarning(title="경고!", message="최소 1글자 이상 입력해야 합니다.")
+        return     
+    try:
+        deadline = datetime.datetime.strptime(entry1_task.get(), '%Y-%m-%d') # 날짜 가져오기
+        d_day = (deadline - now).days
+        if d_day < -1:  # 지난 날짜는 입력 불가능
+            tk.messagebox.showwarning(title="경고!", message="지난 날짜는 입력할 수 없습니다.")
+            return
+        deaddate = str(deadline)
+        if task != "" and d_day == -1: # 날짜가 당일
+            tr_view.insert(parent='', index = 'end' , text = "Parent",
+                           values = (task, deaddate[:10], "D-Day", d_day),
+                           tags = str(nid))
+            color_Task(str(nid), d_day)
+        elif task != "":
+            tr_view.insert(parent='', index = 'end' , text = "Parent",
+                           values = (task, deaddate[:10], "D-" + str(d_day + 1), d_day),
+                           tags = str(nid))
+            color_Task(str(nid), d_day)
+        entry2_task.delete(0, "end")
+        nid += 1
+    except: # 날짜 선택 안 함
+        tk.messagebox.showwarning(title="경고!", message="날짜를 선택해야 합니다.")
+    entry1_task.delete(0, "end")
+    
+# 삭제하기
+def delete_task():
+    try:
+        curItem = tr_view.focus()
+        tr_view.delete(curItem)
+    except:
+        tkinter.messagebox.showwarning(title="경고!", message="할 일을 선택해야 합니다.")
+
+# 일괄삭제
+def delete_entire_task():
+    tr_view.delete(*tr_view.get_children())
+
+# 저장하기
+def save_tasks():
+    x=[tr_view.item(x)['values'] for x in tr_view.get_children()]
+    filehandler = open('data.pickle', 'wb')
+    pickle.dump(x,filehandler)
+
+# 불러오기
+def load_tasks():
+    delete_entire_task()  # 전체 삭제
+    items = []
+    try:
+        filehandler = open('data.pickle', 'rb')
+        items = pickle.load(filehandler)
+    except:
+        tkinter.messagebox.showwarning(title="오류!", message="저장파일을 찾지 못 했습니다.")
+    insert_tr(items)
+# 정렬하기
+def sort_tasks(e):
+    t_list=[tr_view.item(x)['values'] for x in tr_view.get_children()]
+    delete_entire_task()
+    t_list.sort(key=lambda x:x[3])
+    insert_tr(t_list)
+    
+# 역 정렬
+def reverse_sort_tasks(e):
+    t_list=[tr_view.item(x)['values'] for x in tr_view.get_children()]
+    delete_entire_task()
+    t_list.sort(key=lambda x:x[3],reverse = True)
+    insert_tr(t_list)
+
+# 트리뷰 추가 메소드
+def insert_tr(t_list):
+    global nid
+    nid = 0
+    for item in t_list:
+        load_days = datetime.datetime.strptime(item[1], '%Y-%m-%d') # 당시 날짜 반환
+        d_day = (load_days - now).days # 새로운 남은 날짜
+        if d_day < -1:
+            tr_view.insert(parent='', index = 'end',
+                           values = (item[0], item[1][:10], "Fail..", d_day),
+                           tags = str(nid))
+            color_Task(str(nid), -2)
+        elif d_day == -1:
+            tr_view.insert(parent='', index = 'end',
+                           values = (item[0], item[1][:10], "D-Day", d_day),
+                           tags = str(nid))
+            color_Task(str(nid), -1)
+        else:
+            tr_view.insert(parent='', index = 'end',
+                           values = (item[0], item[1][:10], "D-" + str(d_day + 1), d_day),
+                           tags = str(nid))
+            color_Task(str(nid), d_day)
+        nid += 1
+# 추가 메소드
+
+# 현재 시각 넣기
+
+now = datetime.datetime.today() # 현재 시각
+today = datetime.date.today()
+
+t_frame = tk.Frame(root)
+t_frame.pack(side="top")
+
+tr_view_frame = tk.Frame(t_frame)
+tr_view=tk.ttk.Treeview(tr_view_frame) # 표 만들기
+tr_view_frame.pack(side="left")
+
+scb = ttk.Scrollbar(tr_view_frame, orient="vertical", command=tr_view.yview)
+scb.pack(side='right', fill='y')
+
+tr_view.configure(yscrollcommand=scb.set) 
+
+# 표 속성 정의
+tr_view['columns'] = ("할 일", "목표 일자", "D-Day", "S_day")
+
+tr_view.column("#0", width= 0, minwidth = 0)
+tr_view.column("할 일", anchor=CENTER, width = 180)
+tr_view.column("목표 일자", anchor=CENTER, width = 80)
+tr_view.column("D-Day", anchor= CENTER, width = 80)
+tr_view.column("S_day", width = 0, minwidth = 0) # 정렬용 데이터 
+
+tr_view.heading("할 일", text="할 일", anchor = CENTER)
+tr_view.heading("목표 일자", text="목표 일자", anchor = CENTER)
+tr_view.heading("D-Day", text="D-Day", anchor = CENTER)
+tr_view.pack()
+
+# 키 바인드
+root.bind("<Prior>" , sort_tasks)
+root.bind("<Next>" , reverse_sort_tasks)
+
+
+ ########## 버튼 GUI 부분 ##########
+# 입력 창
+input_frame = tk.Frame(root)
+input_frame.pack(side="top")
+
+entry1_task = tk.Entry(input_frame, width=12, bg = 'lightcyan')
+entry1_task.pack(side= 'left')
+
+entry2_task = tk.Entry(input_frame, width=38)
+entry2_task.insert(0, "할 일을 입력하세요...")
+entry2_task.pack(side= 'left')
+
+
+add_frame = tk.Frame(root)
+add_frame.pack(side = "top")
+
+# 달력 버튼
+button_calendar_task = tk.Button(add_frame, 
+              text="날짜 선택", width=12, bg = 'lightskyblue',
+              command=createNewWindow)
+button_calendar_task.grid(row = 1, column = 1)
+
+# 추가하기 버튼
+button_add_task = tk.Button(add_frame, text="추가하기", width=36, command= add_task)
+button_add_task.grid(row = 1, column = 2)
+
+# 완료 버튼
+
+delete_frame = tk.Frame(root)
+delete_frame.pack()
+
+# 일괄 삭제
+button_delete_entire_task = tk.Button(delete_frame, text="일괄삭제",bg = 'tomato', width=12, command= delete_entire_task)
+button_delete_entire_task.grid(row = 1, column = 1)
+
+# 삭제 버튼
+button_delete_task = tk.Button(delete_frame, text="삭제하기",fg = 'red', width=36, command= delete_task)
+button_delete_task.grid(row = 1, column = 2)
+
+load_del_frame = tk.Frame(root)
+load_del_frame.pack()
+
+# 불러오기 버튼
+button_load_tasks = tk.Button(load_del_frame, text="불러오기", width=24, command = load_tasks)
+button_load_tasks.grid(row = 1, column = 1)
+
+# 저장하기 버튼
+button_save_tasks = tk.Button(load_del_frame, text="저장하기", width=24, command= save_tasks)
+button_save_tasks.grid(row = 1, column = 2)
+
+
+root.mainloop()
