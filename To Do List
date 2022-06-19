@@ -49,9 +49,6 @@ def createNewWindow():
     # 팝업 활성화 시 root창 비 활성화
     newWindow.grab_set()
     
-
- 
-
 # 달력 선택
 def selectDay():
     deadline = datetime.datetime.strptime(cal.get_date(), '%m/%d/%y')
@@ -65,9 +62,52 @@ def selectDay():
         return
     entry1_task.delete(0, tkinter.END)
     entry1_task.insert(0, deaddate[:10])
-    newWindow.destroy()
+    newWindow.destroy()    
+
+# 날짜별로 보기
+def calendarNewWindow():
+    # 팝업 창, 좌표
+    global getValue, getDate, listbox_tasks
+    x = root.winfo_x()
+    y = root.winfo_y()
+    global cal, newWindow
+    newWindow = tk.Toplevel()
+    newWindow.geometry("%dx%d+%d+%d" % (200, 190, x, y))
+    newWindow.resizable(False, False)
+    listbox_tasks = tkinter.Listbox(newWindow, height=10, width=50)
+    listbox_tasks.pack()
+    getDate.sort()
+    getDate_set = set(getDate)
+    getDate = list(getDate_set)
+    for i in getDate:
+        listbox_tasks.insert(tkinter.END, i)
+    # 선택 버튼
+    button_complete_task = tk.Button(newWindow, text="선택",
+                                     bg = 'lightgray', width=27,
+                                     command = select_complete_Day)
+    button_complete_task.pack()
+    # 팝업 활성화 시 root창 비 활성화
+
     
-        
+
+# 날짜 달력 선택
+def select_complete_Day():
+    global getValue, getDate, listbox_tasks
+    for i in listbox_tasks.curselection():
+        getSel_day = listbox_tasks.get(i)
+    x = newWindow.winfo_x()
+    y = newWindow.winfo_y()
+    calday = tk.Toplevel()
+    calday.geometry("%dx%d+%d+%d" % (400, 250, x, y))
+    calday.resizable(False, False)
+    cal_listbox_tasks = tkinter.Listbox(calday, height=10, width=50)
+    cal_listbox_tasks.pack()
+    cal_listbox_tasks.delete(0, tkinter.END)
+    for i in getValue:
+        if i[1] == getSel_day:
+            cal_listbox_tasks.insert(tkinter.END, i)
+    
+     
 
 # 색칠 함수
 def color_Task(nid, d_day):
@@ -124,6 +164,19 @@ def delete_task():
         tr_view.delete(curItem)
     except:
         tkinter.messagebox.showwarning(title="경고!", message="할 일을 선택해야 합니다.")
+        
+getValue = []
+getDate = []
+# 수행하기
+def complete_task():
+    global getValue
+    try:
+        curItem = tr_view.focus()
+        getValue.append(tr_view.item(curItem).get('values'))
+        getDate.append(tr_view.item(curItem).get('values')[1])
+        tr_view.delete(curItem)
+    except:
+        tkinter.messagebox.showwarning(title="경고!", message="할 일을 선택해야 합니다.")
 
 # 일괄삭제
 def delete_entire_task():
@@ -131,17 +184,23 @@ def delete_entire_task():
 
 # 저장하기
 def save_tasks():
+    global getValue, getDate
     x=[tr_view.item(x)['values'] for x in tr_view.get_children()]
     filehandler = open('data.pickle', 'wb')
     pickle.dump(x,filehandler)
+    pickle.dump(getDate, open("tasks.dat", "wb"))
+    pickle.dump(getValue, open("getv.dat", "wb"))
 
 # 불러오기
 def load_tasks():
     delete_entire_task()  # 전체 삭제
+    global getValue, getDate
     items = []
     try:
         filehandler = open('data.pickle', 'rb')
         items = pickle.load(filehandler)
+        getDate = pickle.load(open("tasks.dat", "rb"))
+        getValue = pickle.load(open("getv.dat", "rb"))
     except:
         tkinter.messagebox.showwarning(title="오류!", message="저장파일을 찾지 못 했습니다.")
     insert_tr(items)
@@ -256,8 +315,13 @@ button_delete_entire_task = tk.Button(delete_frame, text="일괄삭제",bg = 'to
 button_delete_entire_task.grid(row = 1, column = 1)
 
 # 삭제 버튼
-button_delete_task = tk.Button(delete_frame, text="삭제하기",fg = 'red', width=36, command= delete_task)
+button_delete_task = tk.Button(delete_frame, text="삭제하기",fg = 'red', width=18, command= delete_task)
 button_delete_task.grid(row = 1, column = 2)
+
+# 수행 버튼
+
+button_delete_task = tk.Button(delete_frame, text="수행하기", width=18, command = complete_task)
+button_delete_task.grid(row = 1, column = 3)
 
 load_del_frame = tk.Frame(root)
 load_del_frame.pack()
@@ -270,5 +334,10 @@ button_load_tasks.grid(row = 1, column = 1)
 button_save_tasks = tk.Button(load_del_frame, text="저장하기", width=24, command= save_tasks)
 button_save_tasks.grid(row = 1, column = 2)
 
+calendar_frame = tk.Frame(root)
+calendar_frame.pack()
+
+button_save_tasks = tk.Button(calendar_frame, text="날짜별 보기", width=48, command = calendarNewWindow)
+button_save_tasks.grid(row = 1, column = 1)
 
 root.mainloop()
